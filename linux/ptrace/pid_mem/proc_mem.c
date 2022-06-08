@@ -14,17 +14,26 @@
 #include "logging.h"
 #include "autofree.h"
 #include "ctype.h"
+#include "hex.h"
+#include "common.h"
 
 struct PIDMem {
     int pid;
-    size_t offset;
+    size_t vaddr;
     size_t count;
 };
 
+static const char *help = 
+"Usage: proc_mem <--pid pid> <--vaddr vaddr> <--count N>\n"
+"\t-p, --pid pid\t\tThe pid of the process to be whatched\n"
+"\t-v, --vaddr vaddr\tThe begin virutal address we want to access.\n"
+"\t-c, --count N\t\tRead only N count memeory.\n";
+
 static int check_pidmem(struct PIDMem *pidmem)
 {
-    if (pidmem->pid == 0 || pidmem->count == 0) {
+    if (pidmem->pid == 0 || pidmem->count == 0 || pidmem->vaddr == 0) {
         printf("Invalid input argument\n");
+        printf("%s",help);
         return -1;
     }
     
@@ -35,23 +44,28 @@ static void parse_pidmem(int argc, char *argv[], struct PIDMem *pidmem)
 {
     struct option opts[] = {
         {"pid",     required_argument,  0,  'p'},
-        {"offset",  required_argument,  0,  'o'},
-        {"count",   required_argument,  0,  'c'}
+        {"vaddr",  required_argument,  0,   'v'},
+        {"count",   required_argument,  0,  'c'},
+        {"help",    no_argument,        0,  'h'}
     };
 
     int arg = 0;
     int index = 0;
 
-    while ((arg = getopt_long(argc, argv, "p:o:c:h", opts, &index)) != -1) {
+    while ((arg = getopt_long(argc, argv, "p:v:c:h", opts, &index)) != -1) {
         switch(arg) {
             case 'p':
                 pidmem->pid = atoi(optarg);
                 break;
-            case 'o':
-                pidmem->offset = strtoul(optarg, NULL, 0);
+            case 'v':
+                pidmem->vaddr = strtoul(optarg, NULL, 0);
                 break;
             case 'c':
                 pidmem->count = strtoul(optarg, NULL, 0);
+                break;
+            case 'h':
+                printf("%s",help);
+                exit(0);
                 break;
             default: 
                 break;
@@ -59,29 +73,12 @@ static void parse_pidmem(int argc, char *argv[], struct PIDMem *pidmem)
     }
 }
 
-static int attach_pid(int pid)
+static void attach_pid(int pid)
 {
     ptrace(PTRACE_ATTACH, pid, NULL, NULL);
 
     waitpid(pid, NULL, 0);//wait for the attach to succeed.
 }
-
-static void hex_mem(size_t addr, const u8 *buff, size_t size)
-{
-    size_t index = addr;
-    const u8 *p = buff;
-
-    for (; (size_t)p+16 <= (size_t)buff+size; ) {
-        printf("%p  %02x %02x %02x %02x",(void *)index, p[0],p[1],p[2],p[3]); p += 4;
-        printf(" %02x %02x %02x %02x",p[0],p[1],p[2],p[3]); p += 4;
-        printf("  %02x %02x %02x %02x",p[0],p[1],p[2],p[3]); p += 4;
-        printf(" %02x %02x %02x %02x\n",p[0],p[1],p[2],p[3]);p += 4;
-        index += 16;
-    }
-}
-
-#define PAGE_SIZE 4096
-#define ALIGN_PAGE(addr) ((addr)+PAGE_SIZE-1)&~(PAGE_SIZE-1)
 
 static int dump_mem(struct PIDMem *pidmem)
 {
@@ -97,7 +94,7 @@ static int dump_mem(struct PIDMem *pidmem)
     fd = open(mempath, O_RDONLY);
     LOG_COND_CHECK((fd < 0), fd, failed);
 
-    off = lseek(fd, pidmem->offset, SEEK_SET);
+    off = lseek(fd, pidmem->vaddr, SEEK_SET);
     LOG_COND_CHECK((off == -1), -1, failed);
 
     buff = malloc(countsize);
@@ -106,7 +103,7 @@ static int dump_mem(struct PIDMem *pidmem)
     readsize = read(fd, buff, countsize);
     LOG_COND_CHECK((readsize < 0), -1, failed);
 
-    hex_mem(pidmem->offset, buff, (size_t)readsize);
+    hex_mem(pidmem->vaddr, buff, (size_t)readsize);
 
 failed:
     return ret;

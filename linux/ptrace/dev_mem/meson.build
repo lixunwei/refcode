@@ -1,5 +1,5 @@
 
-executable('devmem', 'dev_mem.c', include_directories : inc, install: true)
+executable('devmem', 'dev_mem.c', link_with: [libhex], include_directories : inc, install: true)
 
 
 

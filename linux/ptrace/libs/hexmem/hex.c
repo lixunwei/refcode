@@ -6,7 +6,7 @@
 
 #define POUT_SIZE 4096
 
-static char * hex_str(const u8 hex[16])
+static char * hex_str(const u8 *hex, int size)
 {
     static char str[19];
     int index;
@@ -16,11 +16,12 @@ static char * hex_str(const u8 hex[16])
     str[18] = '\0';
 
     for (index = 0; index < 16; index++) {
-        if (hex[index] >= 0x21 && hex[index] <= 0x7e) {
-            str[index+1] = hex[index];
-            continue;
-        }
         str[index+1] = '.';
+    }
+
+    for (index = 0; index < size; index++) {
+        if (hex[index] >= 0x21 && hex[index] <= 0x7e)
+            str[index+1] = hex[index];
     }
 
     return &str[0];
@@ -32,6 +33,7 @@ int hex_mem(size_t addr, const u8 *buff, size_t size)
     char *outstart = NULL;
     char *outend = NULL;
     size_t index = 0;
+    size_t padding = 0;
     int ret = 0;
 
     tmpbuff = malloc(POUT_SIZE);
@@ -40,34 +42,59 @@ int hex_mem(size_t addr, const u8 *buff, size_t size)
     outstart = tmpbuff;
     outend = outstart + POUT_SIZE;
 
-    for (index = 0; index < size; index++) {
+    for (index = 0; index < size || padding != 0; index++) {
         int count = 0;
+        const char *formatarr[16] =  {
+                                        [0x00] = "%p %02x", 
+                                        [0x01 ... 0x07] = " %02x",
+                                        [0x08] = "  %02x",
+                                        [0x09 ... 0x0e] = " %02x",
+                                        [0x0f] = " %02x  %s\n" 
+                                     };
+
+        const char *paddingattr[16]= {
+                                        [0x00] = "%p %02x", 
+                                        [0x01 ... 0x07] = "  %c",
+                                        [0x08] = "   %c",
+                                        [0x09 ... 0x0e] = "  %c",
+                                        [0x0f] = "  %c  %s\n" 
+                                     }; 
+        u8 val = ' ';
+        const char *format = paddingattr[index%16];
+
+        if (padding == 0) {
+            format = formatarr[index%16];
+            val = buff[index];
+        }
+
         switch(index%16) {
             case 0x0:
-                count = snprintf(outstart, (size_t)(outend-outstart), "%p %02x", (void *)(addr + index), buff[index]);
-                break;
-            case 0x8:
-                count = snprintf(outstart, (size_t)(outend-outstart), "  %02x", buff[index]);
+                count = snprintf(outstart, (size_t)(outend-outstart), format, (void *)(addr + index), val);
                 break;
             case 0xf:
                 {
-                    char *str;
-                    str = hex_str(&buff[index&~(0x0f)]);
-                    count = snprintf(outstart, (size_t)(outend-outstart), " %02x  %s\n", buff[index], str);
+                    char *str = hex_str(&buff[index&~(0x0f)], 16 - padding);
+                    count = snprintf(outstart, (size_t)(outend-outstart), format, val, str);
+                    padding = count >= (int)(outend-outstart) ? padding : 0;
                 }
                 break;
             default:
-                count = snprintf(outstart, (size_t)(outend-outstart), " %02x", buff[index]);
+                count = snprintf(outstart, (size_t)(outend-outstart), format, val);
                 break;
         }
-        
-        if (count >= (size_t)(outend-outstart)) {
+
+        if (index + 1 == size && size % 16 != 0) {
+            padding = index % 16;
+        }
+
+        if (count >= (int)(outend-outstart)) {
             *outstart = '\0';
             outstart = outend - POUT_SIZE;
             printf("%s", outstart);
             index--;
             continue;
-        }    
+        }
+
         outstart += count;
     }
 

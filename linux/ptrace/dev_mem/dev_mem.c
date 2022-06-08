@@ -14,6 +14,7 @@
 #include "logging.h"
 #include "autofree.h"
 #include "ctype.h"
+#include "hex.h"
 
 struct DevMem {
     int pid;
@@ -22,16 +23,33 @@ struct DevMem {
     size_t count;
 };
 
+static const char *help = 
+"Usage: dev_mem <--pid pid> <--vaddr vaddr> <--count N>\n"
+"\t-p, --pid pid\t\tThe pid of the process to be whatched\n"
+"\t-v, --vaddr vaddr\tThe begin virutal address we want to access.\n"
+"\t-c, --count N\t\tRead only N count memeory.\n";
+
+static int check_devmem(struct DevMem *devmem)
+{
+    if (devmem->pid == 0 || devmem->count == 0 || devmem->vaddr == 0) {
+        printf("Invalid input argument\n");
+        printf("%s", help);
+        return -1;
+    }
+
+    return 0;
+}
+
 static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
 {
     struct option opts[] = {
         {"pid",     required_argument,  0,  'p'},
         {"vaddr",   required_argument,  0,  'v'},
-        {"count",   required_argument,  0,  'c'}
+        {"count",   required_argument,  0,  'c'},
+        {"help",    no_argument,        0,  'h'},
     };
 
-    int arg = 0;
-    int index = 0;
+    int arg = 0; int index = 0;
 
     while ((arg = getopt_long(argc, argv, "p:o:c:h", opts, &index)) != -1) {
         switch(arg) {
@@ -43,6 +61,10 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
                 break;
             case 'c':
                 devmem->count = strtoul(optarg, NULL, 0);
+                break;
+            case 'h':
+                printf("%s",help);
+                exit(0);
                 break;
             default: 
                 break;
@@ -76,11 +98,10 @@ static int get_paddr(struct DevMem *devmem)
     LOG_COND_CHECK((fd < 0), fd, failed);
 
     off = lseek(fd, vpfn*8, SEEK_SET);
+    LOG_COND_CHECK((off == -1), -1, failed);
 
     ret = read(fd, (u8 *)&pfn, 8);
     LOG_COND_CHECK((ret != sizeof(pfn)), fd, failed);
-
-    pfn = PFN(pfn);
 
     devmem->paddr = pfn * PAGE_SIZE;
 
@@ -88,25 +109,11 @@ failed:
     return ret;
 }
 
-static void hex_mem(size_t addr, const u8 *buff, size_t size)
-{
-    size_t index = addr;
-    const u8 *p = buff;
-
-    for (; (size_t)p+16 <= (size_t)buff+size; ) {
-        printf("%p  %02x %02x %02x %02x",(void *)index, p[0],p[1],p[2],p[3]); p += 4;
-        printf(" %02x %02x %02x %02x",p[0],p[1],p[2],p[3]); p += 4;
-        printf("  %02x %02x %02x %02x",p[0],p[1],p[2],p[3]); p += 4;
-        printf(" %02x %02x %02x %02x\n",p[0],p[1],p[2],p[3]);p += 4;
-        index += 16;
-    }
-}
-
 static int get_pmem(struct DevMem *devmem)
 {
     char path[16] = "/dev/mem";
     autoclose int fd;
-    autofree u8 *buff;
+    autofree u8 *buff = NULL;
     off_t off;
     ssize_t readsize;
     size_t count = ALIGN_PAGE_UP(devmem->count);
@@ -133,9 +140,15 @@ failed:
 int main(int argc, char *argv[])
 {
     struct DevMem devmem;
+    int ret;
 
     parse_devmem(argc, argv, &devmem);
+    ret = check_devmem(&devmem);
+    LOG_COND_CHECK((ret < 0), -1, failed);
 
     get_paddr(&devmem);
     get_pmem(&devmem);
+    
+failed:
+    return ret;
 }
