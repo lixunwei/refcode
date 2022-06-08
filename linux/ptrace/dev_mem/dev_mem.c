@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include "logging.h"
 #include "autofree.h"
+#include "common.h"
 #include "ctype.h"
 #include "hex.h"
 
@@ -72,7 +73,6 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
     }
 }
 
-#define PAGE_SIZE 4096
 #define ALIGN_PAGE_DOWN(addr) (addr)&~(PAGE_SIZE-1)
 #define ALIGN_PAGE_UP(addr) (addr+PAGE_SIZE-1)&~(PAGE_SIZE-1)
 
@@ -116,7 +116,7 @@ static int get_pmem(struct DevMem *devmem)
     autofree u8 *buff = NULL;
     off_t off;
     ssize_t readsize;
-    size_t count = ALIGN_PAGE_UP(devmem->count);
+    size_t count = ALIGN_ULONG(devmem->count);
     int ret;
 
     fd = open(path, O_RDONLY);

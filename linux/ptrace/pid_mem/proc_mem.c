@@ -85,7 +85,7 @@ static int dump_mem(struct PIDMem *pidmem)
     char mempath[256];
     autoclose int fd;
     autofree u8 *buff;
-    size_t countsize = ALIGN_PAGE(pidmem->count);
+    size_t countsize = ALIGN_ULONG(pidmem->count);
     ssize_t readsize;
     off_t off;
     int ret;

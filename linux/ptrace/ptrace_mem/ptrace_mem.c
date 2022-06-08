@@ -18,28 +18,39 @@
 #include "hex.h"
 #include "common.h"
 
+#define PTRACE_READ     0
+#define PTRACE_WRITE    1
 
 struct PtraceMem {
     pid_t pid;
     size_t vaddr;
     size_t count;
+    size_t value;
+    int flags;
 };
 
 static const char *help = 
-"Usage: ptrace_mem <--pid pid> <--vaddr vaddr> <--count N>\n"
+"Usage: ptrace_mem <--pid pid> <--vaddr vaddr> [<--count N>|<--write val>]\n"
 "\t-p, --pid pid\t\tThe pid of the process to be whatched\n"
 "\t-v, --vaddr vaddr\tThe begin virutal address we want to access.\n"
-"\t-c, --count N\t\tRead only N count memeory.\n";
+"\t-c, --count N\t\tRead only N count memeory.\n"
+"\t-w, --write Val\t\tWrite Val to memeory.\n";
 
 static int check_ptracemem(struct PtraceMem *ptracemem)
 {
-    if (ptracemem->pid == 0 || ptracemem->count == 0 || ptracemem->vaddr == 0) {
-        printf("Invalid input argument\n");
-        printf("%s", help);
-        return -1;
-    }
-    
-    return 0;
+    int ret = 0;
+    int read = ptracemem->flags != PTRACE_WRITE;
+
+    LOG_COND_CHECK((ptracemem->pid == 0), -1, Help);
+    LOG_COND_CHECK((ptracemem->vaddr == 0), -1, Help);
+    LOG_COND_CHECK((ptracemem->count == 0 && read), -1, Help);
+
+    return ret;
+
+Help:
+    printf("Invalid input argument\n");
+    printf("%s", help);
+    return ret;
 }
 
 static void parse_ptracemem(int argc, char *argv[], struct PtraceMem *ptracemem)
@@ -48,6 +59,7 @@ static void parse_ptracemem(int argc, char *argv[], struct PtraceMem *ptracemem)
         {"pid",     required_argument,  0,  'p'},
         {"vaddr",   required_argument,  0,  'v'},
         {"count",   required_argument,  0,  'c'},
+        {"write",   required_argument,  0,  'w'},
         {"help",    no_argument,        0,  'h'}
     };
 
@@ -63,6 +75,10 @@ static void parse_ptracemem(int argc, char *argv[], struct PtraceMem *ptracemem)
                 break;
             case 'c':
                 ptracemem->count = strtoul(optarg, NULL, 0);
+                break;
+            case 'w':
+                ptracemem->count = strtoul(optarg, NULL, 0);
+                ptracemem->flags = PTRACE_WRITE;
                 break;
             case 'h':
                 printf("%s",help);
@@ -85,12 +101,23 @@ failed:
     return ret;
 }
 
+static int unptrace_pid(pid_t pid)
+{
+    int ret;
+
+    ret = ptrace(PTRACE_DETACH, pid, 0, 0);
+    LOG_COND_CHECK((ret < 0), ret, failed);
+
+failed:
+    return ret;
+}
+
 static int dump_mem(struct PtraceMem *pmem)
 {
-    unsigned long data;
+    long data;
     autofree u8 *buff;
     size_t index;
-    size_t size = ALIGN_PAGE(pmem->count);
+    size_t size = ALIGN_ULONG(pmem->count);
     int ret = 0;
 
     buff = malloc(size);
@@ -98,18 +125,37 @@ static int dump_mem(struct PtraceMem *pmem)
 
     for (index = 0; index < size/sizeof(long); index++) {
         data = ptrace(PTRACE_PEEKTEXT, pmem->pid, pmem->vaddr + index*8, NULL);
+        LOG_COND_CHECK((data < 0), -1, failed);
         memcpy(&buff[index*8], (u8 *)&data, sizeof(data));
     }
-
+/*
+    data = ptrace(PTRACE_CONT, pmem->pid, 0, 0);
+    LOG_COND_CHECK((data < 0), -1, failed);
+*/
     hex_mem(pmem->vaddr, buff,  size);
  
 failed:
     return ret;
 }
 
+static int write_mem(struct PtraceMem *pmem)
+{
+    long pret;
+    int ret;
+
+    pret = ptrace(PTRACE_POKEDATA, pmem->pid, pmem->vaddr, pmem->value);
+    LOG_COND_CHECK((pret < 0), -1, failed);
+
+    pret = ptrace(PTRACE_CONT, pmem->pid, 0, 0);
+    LOG_COND_CHECK((pret < 0), -1, failed);
+
+failed:
+    return ret;
+}
+
 int main(int argc, char *argv[])
 {
-    struct PtraceMem ptracemem = {0,0,0};
+    struct PtraceMem ptracemem = {0,0,0,0};
     int ret;
 
     parse_ptracemem(argc, argv, &ptracemem);
@@ -119,7 +165,14 @@ int main(int argc, char *argv[])
     ret = ptrace_pid(ptracemem.pid);
     LOG_COND_CHECK((ret < 0), ret, failed);
 
-    dump_mem(&ptracemem);
+
+    if (ptracemem.flags == PTRACE_READ)
+        dump_mem(&ptracemem);
+
+    if (ptracemem.flags == PTRACE_WRITE)
+        write_mem(&ptracemem);
+
+    unptrace_pid(ptracemem.pid);
 
 failed:
     return ret;
