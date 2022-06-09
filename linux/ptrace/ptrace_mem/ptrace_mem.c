@@ -77,7 +77,7 @@ static void parse_ptracemem(int argc, char *argv[], struct PtraceMem *ptracemem)
                 ptracemem->count = strtoul(optarg, NULL, 0);
                 break;
             case 'w':
-                ptracemem->count = strtoul(optarg, NULL, 0);
+                ptracemem->value = strtoul(optarg, NULL, 0);
                 ptracemem->flags = PTRACE_WRITE;
                 break;
             case 'h':
@@ -96,6 +96,8 @@ static int ptrace_pid(pid_t pid)
 
     ret = ptrace(PTRACE_ATTACH, pid, 0, 0);
     LOG_COND_CHECK((ret < 0), ret, failed);
+
+    //waitpid(pid, NULL, 0);//wait for the attach to succeed.
 
 failed:
     return ret;
@@ -128,10 +130,7 @@ static int dump_mem(struct PtraceMem *pmem)
         LOG_COND_CHECK((data < 0), -1, failed);
         memcpy(&buff[index*8], (u8 *)&data, sizeof(data));
     }
-/*
-    data = ptrace(PTRACE_CONT, pmem->pid, 0, 0);
-    LOG_COND_CHECK((data < 0), -1, failed);
-*/
+
     hex_mem(pmem->vaddr, buff,  size);
  
 failed:
@@ -144,9 +143,6 @@ static int write_mem(struct PtraceMem *pmem)
     int ret;
 
     pret = ptrace(PTRACE_POKEDATA, pmem->pid, pmem->vaddr, pmem->value);
-    LOG_COND_CHECK((pret < 0), -1, failed);
-
-    pret = ptrace(PTRACE_CONT, pmem->pid, 0, 0);
     LOG_COND_CHECK((pret < 0), -1, failed);
 
 failed:
