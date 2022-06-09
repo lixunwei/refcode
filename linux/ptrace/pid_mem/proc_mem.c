@@ -99,7 +99,7 @@ static void attach_pid(int pid)
 
 static int mem_rw(struct PIDMem *pidmem)
 {
-    char mempath[256];
+    char mempath[32];
     autoclose int fd = 0;
     autofree u8 *buff = NULL;
     size_t countsize = ALIGN_ULONG(pidmem->count);
@@ -135,7 +135,7 @@ failed:
 
 int main(int argc, char *argv[])
 {
-    struct PIDMem pidmem = {0,0,0};
+    struct PIDMem pidmem = {0,0,0,0,0};
     int ret;
 
     parse_pidmem(argc, &argv[0], &pidmem);

@@ -17,28 +17,41 @@
 #include "ctype.h"
 #include "hex.h"
 
+#define DEVMEM_READ     0 
+#define DEVMEM_WRITE    1
+
 struct DevMem {
     int pid;
     size_t vaddr;
     size_t paddr;
     size_t count;
+    size_t value;
+    int flags;
 };
 
 static const char *help = 
 "Usage: dev_mem <--pid pid> <--vaddr vaddr> <--count N>\n"
 "\t-p, --pid pid\t\tThe pid of the process to be whatched\n"
 "\t-v, --vaddr vaddr\tThe begin virutal address we want to access.\n"
-"\t-c, --count N\t\tRead only N count memeory.\n";
+"\t-c, --count N\t\tRead only N count memeory.\n"
+"\t-w, --write Val\t\tWrite Val to memeory.\n";
 
 static int check_devmem(struct DevMem *devmem)
 {
-    if (devmem->pid == 0 || devmem->count == 0 || devmem->vaddr == 0) {
-        printf("Invalid input argument\n");
-        printf("%s", help);
-        return -1;
-    }
 
-    return 0;
+    int ret = 0;
+    int read = devmem->flags != DEVMEM_WRITE;
+
+    LOG_COND_CHECK((devmem->pid == 0), -1, Help);
+    LOG_COND_CHECK((devmem->vaddr == 0), -1, Help);
+    LOG_COND_CHECK((devmem->count == 0 && read), -1, Help);
+
+    return ret;
+
+Help:
+    printf("Invalid input argument\n");
+    printf("%s", help);
+    return ret;
 }
 
 static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
@@ -47,12 +60,13 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
         {"pid",     required_argument,  0,  'p'},
         {"vaddr",   required_argument,  0,  'v'},
         {"count",   required_argument,  0,  'c'},
+        {"write",   required_argument,  0,  'w'},
         {"help",    no_argument,        0,  'h'},
     };
 
     int arg = 0; int index = 0;
 
-    while ((arg = getopt_long(argc, argv, "p:o:c:h", opts, &index)) != -1) {
+    while ((arg = getopt_long(argc, argv, "p:o:c:w:h", opts, &index)) != -1) {
         switch(arg) {
             case 'p':
                 devmem->pid = atoi(optarg);
@@ -62,6 +76,10 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
                 break;
             case 'c':
                 devmem->count = strtoul(optarg, NULL, 0);
+                break;
+            case 'w':
+                devmem->value = strtoul(optarg, NULL, 0);
+                devmem->flags = DEVMEM_WRITE;
                 break;
             case 'h':
                 printf("%s",help);
@@ -86,7 +104,7 @@ static int get_paddr(struct DevMem *devmem)
 {
     char path[128];
     autoclose int fd;
-    size_t vaddr = ALIGN_PAGE_DOWN(devmem->vaddr);
+    size_t vaddr = ALIGN_ULONG(devmem->vaddr);
     size_t vpfn = vaddr/PAGE_SIZE;
     size_t pfn;
     off_t off;
@@ -103,35 +121,42 @@ static int get_paddr(struct DevMem *devmem)
     ret = read(fd, (u8 *)&pfn, 8);
     LOG_COND_CHECK((ret != sizeof(pfn)), fd, failed);
 
-    devmem->paddr = pfn * PAGE_SIZE;
+    devmem->paddr = pfn * PAGE_SIZE + vaddr % PAGE_SIZE;
 
 failed:
     return ret;
 }
 
-static int get_pmem(struct DevMem *devmem)
+static int pmem_rw(struct DevMem *devmem)
 {
     char path[16] = "/dev/mem";
     autoclose int fd;
     autofree u8 *buff = NULL;
     off_t off;
-    ssize_t readsize;
+    ssize_t rwsize;
     size_t count = ALIGN_ULONG(devmem->count);
     int ret;
 
-    fd = open(path, O_RDONLY);
+    fd = open(path, O_RDWR);
     LOG_COND_CHECK((fd < 0), fd, failed);
 
     off = lseek(fd, devmem->paddr, SEEK_SET);
     LOG_COND_CHECK((off == -1), -1, failed);
 
-    buff = malloc(count);
-    LOG_COND_CHECK((buff == NULL), -1, failed);
+    if (devmem->flags == DEVMEM_READ) {
+        buff = malloc(count);
+        LOG_COND_CHECK((buff == NULL), -1, failed);
 
-    readsize = read(fd, buff, count);
-    LOG_COND_CHECK((readsize < 0), -1, failed);
+        rwsize = read(fd, buff, count);
+        LOG_COND_CHECK((rwsize < 0), -1, failed);
 
-    hex_mem(ALIGN_PAGE_DOWN(devmem->vaddr), buff, (size_t)readsize);
+        hex_mem(ALIGN_PAGE_DOWN(devmem->vaddr), buff, (size_t)rwsize);
+    }
+
+    if (devmem->flags == DEVMEM_WRITE) {
+        rwsize = write(fd, (void *)&devmem->value, sizeof(devmem->value));
+        LOG_COND_CHECK((rwsize != sizeof(devmem->value)), -1, failed);
+    }
 
 failed:
     return ret;
@@ -139,7 +164,7 @@ failed:
 
 int main(int argc, char *argv[])
 {
-    struct DevMem devmem;
+    struct DevMem devmem={0,0,0,0,0,0};
     int ret;
 
     parse_devmem(argc, argv, &devmem);
@@ -147,7 +172,8 @@ int main(int argc, char *argv[])
     LOG_COND_CHECK((ret < 0), -1, failed);
 
     get_paddr(&devmem);
-    get_pmem(&devmem);
+
+    pmem_rw(&devmem);
     
 failed:
     return ret;
