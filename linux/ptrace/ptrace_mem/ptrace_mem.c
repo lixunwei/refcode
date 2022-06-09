@@ -97,7 +97,7 @@ static int ptrace_pid(pid_t pid)
     ret = ptrace(PTRACE_ATTACH, pid, 0, 0);
     LOG_COND_CHECK((ret < 0), ret, failed);
 
-    //waitpid(pid, NULL, 0);//wait for the attach to succeed.
+    waitpid(pid, NULL, 0);//wait for the attach to succeed.
 
 failed:
     return ret;
@@ -151,7 +151,7 @@ failed:
 
 int main(int argc, char *argv[])
 {
-    struct PtraceMem ptracemem = {0,0,0,0};
+    struct PtraceMem ptracemem = {0,0,0,0,0};
     int ret;
 
     parse_ptracemem(argc, argv, &ptracemem);
