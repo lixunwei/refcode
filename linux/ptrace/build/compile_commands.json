@@ -1,0 +1,22 @@
+[
+  {
+    "directory": "/home/nio/lixunwei/refcode/linux/ptrace/build",
+    "command": "cc  -Ilibs/hex@sha -Ilibs -I../libs -I../inc -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -O0 -g -fPIC -MD -MQ 'libs/hex@sha/hexmem_hex.c.o' -MF 'libs/hex@sha/hexmem_hex.c.o.d' -o 'libs/hex@sha/hexmem_hex.c.o' -c ../libs/hexmem/hex.c",
+    "file": "../libs/hexmem/hex.c"
+  },
+  {
+    "directory": "/home/nio/lixunwei/refcode/linux/ptrace/build",
+    "command": "cc  -Idev_mem/devmem@exe -Idev_mem -I../dev_mem -I../inc -I../libs/hexmem -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -O0 -g -MD -MQ 'dev_mem/devmem@exe/dev_mem.c.o' -MF 'dev_mem/devmem@exe/dev_mem.c.o.d' -o 'dev_mem/devmem@exe/dev_mem.c.o' -c ../dev_mem/dev_mem.c",
+    "file": "../dev_mem/dev_mem.c"
+  },
+  {
+    "directory": "/home/nio/lixunwei/refcode/linux/ptrace/build",
+    "command": "cc  -Ipid_mem/proc_mem@exe -Ipid_mem -I../pid_mem -I../inc -I../libs/hexmem -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -O0 -g -MD -MQ 'pid_mem/proc_mem@exe/proc_mem.c.o' -MF 'pid_mem/proc_mem@exe/proc_mem.c.o.d' -o 'pid_mem/proc_mem@exe/proc_mem.c.o' -c ../pid_mem/proc_mem.c",
+    "file": "../pid_mem/proc_mem.c"
+  },
+  {
+    "directory": "/home/nio/lixunwei/refcode/linux/ptrace/build",
+    "command": "cc  -Iptrace_mem/ptrace_mem@exe -Iptrace_mem -I../ptrace_mem -I../inc -I../libs/hexmem -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -O0 -g -MD -MQ 'ptrace_mem/ptrace_mem@exe/ptrace_mem.c.o' -MF 'ptrace_mem/ptrace_mem@exe/ptrace_mem.c.o.d' -o 'ptrace_mem/ptrace_mem@exe/ptrace_mem.c.o' -c ../ptrace_mem/ptrace_mem.c",
+    "file": "../ptrace_mem/ptrace_mem.c"
+  }
+]

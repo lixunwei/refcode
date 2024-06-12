@@ -17,8 +17,11 @@
 #include "ctype.h"
 #include "hex.h"
 
-#define DEVMEM_READ     0 
-#define DEVMEM_WRITE    1
+#define DEVMEM_READ         (0 << 1) 
+#define DEVMEM_WRITE        (1 << 1)
+#define DEVMEM_TRANSLATE    (2 << 1)
+#define DEVMEM_PHYMODE      (3 << 1)
+#define DEVMEM_VIRMODE      (4 << 1)
 
 struct DevMem {
     int pid;
@@ -33,8 +36,10 @@ static const char *help =
 "Usage: dev_mem <--pid pid> <--vaddr vaddr> <--count N>\n"
 "\t-p, --pid pid\t\tThe pid of the process to be whatched\n"
 "\t-v, --vaddr vaddr\tThe begin virutal address we want to access.\n"
+"\t-y, --paddr paddr\tThe begin physical address we want to access.\n"
 "\t-c, --count N\t\tRead only N count memeory.\n"
-"\t-w, --write Val\t\tWrite Val to memeory.\n";
+"\t-w, --write Val\t\tWrite Val to memeory.\n"
+"\t-t, --translate Val\t\tTranslate a vritual address to physical address.\n";
 
 static int check_devmem(struct DevMem *devmem)
 {
@@ -43,8 +48,10 @@ static int check_devmem(struct DevMem *devmem)
     int read = devmem->flags != DEVMEM_WRITE;
 
     LOG_COND_CHECK((devmem->pid == 0), -1, Help);
-    LOG_COND_CHECK((devmem->vaddr == 0), -1, Help);
-    LOG_COND_CHECK((devmem->count == 0 && read), -1, Help);
+
+    if (devmem->flags & DEVMEM_READ)
+        LOG_COND_CHECK((devmem->count == 0), -1, Help);
+
 
     return ret;
 
@@ -57,11 +64,13 @@ Help:
 static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
 {
     struct option opts[] = {
-        {"pid",     required_argument,  0,  'p'},
-        {"vaddr",   required_argument,  0,  'v'},
-        {"count",   required_argument,  0,  'c'},
-        {"write",   required_argument,  0,  'w'},
-        {"help",    no_argument,        0,  'h'},
+        {"pid",         required_argument,  0,  'p'},
+        {"vaddr",       required_argument,  0,  'v'},
+        {"paddr",       required_argument,  0,  'y'},
+        {"count",       required_argument,  0,  'c'},
+        {"write",       required_argument,  0,  'w'},
+        {"translate",   no_argument,        0,  't'},
+        {"help",        no_argument,        0,  'h'},
     };
 
     int arg = 0; int index = 0;
@@ -73,6 +82,11 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
                 break;
             case 'v':
                 devmem->vaddr = strtoul(optarg, NULL, 0);
+                devmem->flags = DEVMEM_VIRMODE;
+                break;
+            case 'y':
+                devmem->paddr = strtoul(optarg, NULL, 0);
+                devmem->flags = DEVMEM_PHYMODE;
                 break;
             case 'c':
                 devmem->count = strtoul(optarg, NULL, 0);
@@ -81,6 +95,10 @@ static void parse_devmem(int argc, char *argv[], struct DevMem *devmem)
                 devmem->value = strtoul(optarg, NULL, 0);
                 devmem->flags = DEVMEM_WRITE;
                 break;
+            case 't':
+                devmem->flags = DEVMEM_TRANSLATE;
+                break;
+
             case 'h':
                 printf("%s",help);
                 exit(0);
@@ -162,6 +180,11 @@ failed:
     return ret;
 }
 
+static void pmem_trans(struct DevMem *devmem)
+{
+   printf("%p\n", (void *)devmem->paddr); 
+}
+
 int main(int argc, char *argv[])
 {
     struct DevMem devmem={0,0,0,0,0,0};
@@ -173,7 +196,11 @@ int main(int argc, char *argv[])
 
     get_paddr(&devmem);
 
-    pmem_rw(&devmem);
+    if (devmem.flags == DEVMEM_TRANSLATE)
+        pmem_trans(&devmem);
+
+    if (devmem.flags == DEVMEM_READ || devmem.flags == DEVMEM_WRITE)
+        pmem_rw(&devmem);
     
 failed:
     return ret;

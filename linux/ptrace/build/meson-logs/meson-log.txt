@@ -1,0 +1,24 @@
+Build started at 2022-06-09T09:33:29.164080
+Main binary: /usr/bin/python3
+Python system: Linux
+The Meson build system
+Version: 0.45.1
+Source dir: /home/nio/lixunwei/refcode/linux/ptrace
+Build dir: /home/nio/lixunwei/refcode/linux/ptrace/build
+Build type: native build
+Project name: debugging ptest
+Sanity testing C compiler: cc
+Is cross compiler: False.
+Sanity check compiler command line: cc /home/nio/lixunwei/refcode/linux/ptrace/build/meson-private/sanitycheckc.c -o /home/nio/lixunwei/refcode/linux/ptrace/build/meson-private/sanitycheckc.exe
+Sanity check compile stdout:
+
+-----
+Sanity check compile stderr:
+
+-----
+Running test binary command: /home/nio/lixunwei/refcode/linux/ptrace/build/meson-private/sanitycheckc.exe
+Native C compiler: cc (gcc 7.5.0 "cc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0")
+Build machine cpu family: x86_64
+Build machine cpu: x86_64
+Build targets in project: 4
+Found ninja-1.8.2 at /usr/bin/ninja

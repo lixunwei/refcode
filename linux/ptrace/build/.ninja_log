@@ -1,0 +1,12 @@
+# ninja log v5
+0	42	1654738411	libs/hex@sha/hexmem_hex.c.o	aa21b34e924c080f
+1	56	1654738411	ptrace_mem/ptrace_mem@exe/ptrace_mem.c.o	d7d39d2964a708d0
+0	71	1654738411	dev_mem/devmem@exe/dev_mem.c.o	16a202679c7d05de
+1	71	1654738411	pid_mem/proc_mem@exe/proc_mem.c.o	fb9e4878eadc5030
+43	72	1654738411	libs/libhex.so.1.0.0	bf20694ce7efece
+72	339	1654738411	libs/hex@sha/libs/libhex.so.1.0.0.symbols	dcfd4e99d5179ffa
+339	358	1654738411	pid_mem/proc_mem	fc8696c67baf0dcf
+340	369	1654738411	ptrace_mem/ptrace_mem	4ebae112c0b5c6bb
+339	369	1654738411	dev_mem/devmem	9166d1efb042c13a
+0	57	1654739229	pid_mem/proc_mem@exe/proc_mem.c.o	fb9e4878eadc5030
+57	79	1654739229	pid_mem/proc_mem	fc8696c67baf0dcf
