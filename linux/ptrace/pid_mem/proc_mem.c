@@ -97,9 +97,11 @@ static void attach_pid(int pid)
     waitpid(pid, NULL, 0);//wait for the attach to succeed.
 }
 
+
 static int mem_rw(struct PIDMem *pidmem)
 {
     char mempath[32];
+    char hexpath[32];
     autoclose int fd = 0;
     autofree u8 *buff = NULL;
     size_t countsize = ALIGN_ULONG(pidmem->count);
@@ -108,6 +110,7 @@ static int mem_rw(struct PIDMem *pidmem)
     int ret;
 
     snprintf(mempath, sizeof(mempath), "/proc/%d/mem", pidmem->pid);
+    snprintf(hexpath, sizeof(hexpath), "%d.bin", pidmem->pid);
     fd = open(mempath, O_RDWR);
     LOG_COND_CHECK((fd < 0), fd, failed);
 
@@ -121,6 +124,7 @@ static int mem_rw(struct PIDMem *pidmem)
         rwsize = read(fd, buff, countsize);
         LOG_COND_CHECK((rwsize < 0), -1, failed);
 
+        write_file(hexpath, buff, rwsize);
         hex_mem(pidmem->vaddr, buff, (size_t)rwsize);
     }
 

@@ -3,8 +3,39 @@
 #include "ctype.h"
 #include "autofree.h"
 #include "hex.h"
+#include <inttypes.h>
+#include <errno.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define POUT_SIZE 4096
+
+int write_file(const char *fname, void *inbuf, size_t inbuf_length)
+{
+    int ret;
+    ssize_t count;
+    int fd;
+
+    fd = open(fname, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        printf("can't open %s file\n", fname);
+        return -1;
+    }
+
+    count = write(fd, inbuf, inbuf_length);
+
+    ret = count;
+
+//clean:
+    if (fd > 0) close(fd);
+//exit:
+    return ret;
+}
+
 
 static char * hex_str(const u8 *hex, int size)
 {

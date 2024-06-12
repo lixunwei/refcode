@@ -5,3 +5,4 @@ _end B
 _fini T
 _init T
 hex_mem T
+write_file T
